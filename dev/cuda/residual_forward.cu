@@ -26,9 +26,18 @@ void residual_forward_cpu(float* out, const float* inp1, const float* inp2, int 
 // GPU kernels
 
 // elementwise ops are nice and ez
+//__global__ void residual_forward_kernel(float* out, const float* inp1, const float* inp2, int N) {
+ //   int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  //  if (idx < N) {
+    //    out[idx] = inp1[idx] + inp2[idx];
+    //}
+//}
+
+// strided 
+
+
 __global__ void residual_forward_kernel(float* out, const float* inp1, const float* inp2, int N) {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < N) {
+    for (int idx = blockIdx.x * blockDim.x + threadIdx.x; idx < N; idx += blockDim.x * gridDim.x)  {
         out[idx] = inp1[idx] + inp2[idx];
     }
 }
@@ -37,8 +46,9 @@ __global__ void residual_forward_kernel(float* out, const float* inp1, const flo
 // kernel launcher
 
 void residual_forward1(float* out, const float* inp1, const float* inp2, int N, const int block_size) {
-    const int grid_size = ceil_div(N, block_size);
-    residual_forward_kernel<<<grid_size, block_size>>>(out, inp1, inp2, N);
+    int numSMs;
+    cudaDeviceGetAttribute(&numSMs, cudaDevAttrMultiProcessorCount, 0);
+    residual_forward_kernel<<<32*numSMs, block_size>>>(out, inp1, inp2, N);
     cudaCheck(cudaGetLastError());
 }
 
